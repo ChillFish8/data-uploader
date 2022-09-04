@@ -32,7 +32,7 @@ async fn main() -> Result<()> {
     let client = Client::new();
 
     let fp = options.folder;
-    tokio::task::spawn_blocking(move || start_reading_file(tx, fp));
+    tokio::spawn(start_reading_file(tx, fp));
 
     let total_time = Instant::now();
     let mut counter: usize = 0;
