@@ -104,8 +104,8 @@ pub struct Comment {
     body: String,
     ups: u64,
     downs: u64,
-    score: u64,
-    controversiality: u64,
+    score: i64,
+    controversiality: i64,
 }
 
 
