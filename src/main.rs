@@ -82,6 +82,8 @@ async fn send_block(url: &Url, client: &Client, comments: Vec<Comment>) -> Resul
 
             warn!("Upload skipped due to error: {}, {:?} retrying...", status, msg);
             continue;
+        } else {
+            return Ok(())
         }
     }
 
