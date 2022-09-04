@@ -102,8 +102,8 @@ pub struct Comment {
     author: String,
     created_utc: String,
     body: String,
-    ups: u64,
-    downs: u64,
+    ups: i64,
+    downs: i64,
     score: i64,
     controversiality: i64,
 }
