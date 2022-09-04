@@ -2,6 +2,7 @@ use std::fs::File;
 use std::io::{BufRead, BufReader};
 use std::{fs, mem};
 use std::path::Path;
+use std::sync::Arc;
 use std::time::{Duration, Instant};
 use anyhow::{bail, Result};
 use serde::{Serialize, Deserialize};
@@ -109,15 +110,31 @@ pub struct Comment {
 }
 
 
-fn start_reading_file(tx: flume::Sender<Comment>, folder: String) -> Result<()> {
+async fn start_reading_file(tx: flume::Sender<Comment>, folder: String) -> Result<()> {
     let list_dir = fs::read_dir(&folder)?;
 
+    let semaphore = Arc::new(tokio::sync::Semaphore::new(3));
+    let mut handles = vec![];
     for file in list_dir {
         let file = file?;
         info!("Reading {:?} file...", file.path());
-        if let Err(e) = read_file(&tx, &file.path()) {
-            error!("Failed to read file: {}", e);
-        }
+
+        let tx = tx.clone();
+        let semaphore = semaphore.clone();
+        let permit = semaphore.acquire_owned().await?;
+        let handle = tokio::task::spawn_blocking(move || {
+            if let Err(e) = read_file(&tx, &file.path()) {
+                error!("Failed to read file: {}", e);
+            }
+
+            drop(permit);
+        });
+
+        handles.push(handle);
+    }
+
+    for handle in handles {
+        handle.await.expect("spawn threads ok");
     }
 
     Ok(())
