@@ -37,8 +37,8 @@ async fn main() -> Result<()> {
     let total_time = Instant::now();
     let counter = Arc::new(AtomicUsize::new(0));
 
-    let handle1 = tokio::spawn(uploadeder_task(rx.clone(), url.clone(), counter.clone()));
-    let handle2 = tokio::spawn(uploadeder_task(rx.clone(), url.clone(), counter.clone()));
+    let handle1 = tokio::spawn(uploadeder_task(1, rx.clone(), url.clone(), counter.clone()));
+    let handle2 = tokio::spawn(uploadeder_task(2, rx.clone(), url.clone(), counter.clone()));
 
     let (r1, r2) = futures::future::join(handle1, handle2).await;
 
@@ -54,7 +54,7 @@ async fn main() -> Result<()> {
     Ok(())
 }
 
-async fn uploadeder_task(rx: flume::Receiver<Comment>, url: Url, counter: Arc<AtomicUsize>) -> Result<()> {
+async fn uploadeder_task(id: usize, rx: flume::Receiver<Comment>, url: Url, counter: Arc<AtomicUsize>) -> Result<()> {
     let client = Client::new();
 
     let mut comments_block = vec![];
@@ -69,7 +69,7 @@ async fn uploadeder_task(rx: flume::Receiver<Comment>, url: Url, counter: Arc<At
             let start = Instant::now();
             send_block(&url, &client, mem::take(&mut comments_block)).await?;
 
-            info!("Send {} documents in {:?}. Current total: {} docs.", len, start.elapsed(), total);
+            info!("[TASK {}] Send {} documents in {:?}. Current total: {} docs.", id, len, start.elapsed(), total);
         }
     }
 
@@ -80,7 +80,7 @@ async fn uploadeder_task(rx: flume::Receiver<Comment>, url: Url, counter: Arc<At
 
         let start = Instant::now();
         send_block(&url, &client, comments_block).await?;
-        info!("Send {} documents in {:?}. Current total: {} docs.", len, start.elapsed(), total);
+        info!("[TASK {}] Send {} documents in {:?}. Current total: {} docs.", id, len, start.elapsed(), total);
     }
 
     Ok(())
