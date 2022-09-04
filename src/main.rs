@@ -3,6 +3,7 @@ use std::io::{BufRead, BufReader};
 use std::{fs, mem};
 use std::path::Path;
 use std::sync::Arc;
+use std::sync::atomic::{AtomicUsize, Ordering};
 use std::time::{Duration, Instant};
 use anyhow::{bail, Result};
 use serde::{Serialize, Deserialize};
@@ -29,41 +30,58 @@ async fn main() -> Result<()> {
     let (tx, rx) = flume::bounded(50000);
 
     let url: Url = format!("http://{}/indexes/{}/documents", options.host, options.index_name).parse()?;
-    let client = Client::new();
 
     let fp = options.folder;
     tokio::spawn(start_reading_file(tx, fp));
 
     let total_time = Instant::now();
-    let mut counter: usize = 0;
+    let counter = Arc::new(AtomicUsize::new(0));
+
+    let handle1 = tokio::spawn(uploadeder_task(rx.clone(), url.clone(), counter.clone()));
+    let handle2 = tokio::spawn(uploadeder_task(rx.clone(), url.clone(), counter.clone()));
+
+    let (r1, r2) = futures::future::join(handle1, handle2).await;
+
+    r1??;
+    r2??;
+
+    info!(
+        "Upload took: {} total to upload {} docs.",
+        humantime::format_duration(total_time.elapsed()),
+        counter.load(Ordering::Relaxed),
+    );
+
+    Ok(())
+}
+
+async fn uploadeder_task(rx: flume::Receiver<Comment>, url: Url, counter: Arc<AtomicUsize>) -> Result<()> {
+    let client = Client::new();
+
     let mut comments_block = vec![];
     while let Ok(comment) = rx.recv_async().await {
         comments_block.push(comment);
 
         if comments_block.len() >= 250_000 {
             let len = comments_block.len();
-            counter += len;
+            let old = counter.fetch_add(len, Ordering::Relaxed);
+            let total = old + len;
+
             let start = Instant::now();
             send_block(&url, &client, mem::take(&mut comments_block)).await?;
 
-            info!("Send {} documents in {:?}. Current total: {} docs.", len, start.elapsed(), counter);
+            info!("Send {} documents in {:?}. Current total: {} docs.", len, start.elapsed(), total);
         }
     }
 
     if !comments_block.is_empty() {
         let len = comments_block.len();
-        counter += len;
+        let old = counter.fetch_add(len, Ordering::Relaxed);
+        let total = old + len;
 
         let start = Instant::now();
         send_block(&url, &client, comments_block).await?;
-        info!("Send {} documents in {:?}. Current total: {} docs.", len, start.elapsed(), counter);
+        info!("Send {} documents in {:?}. Current total: {} docs.", len, start.elapsed(), total);
     }
-
-    info!(
-        "Upload took: {} total to upload {} docs.",
-        humantime::format_duration(total_time.elapsed()),
-        counter,
-    );
 
     Ok(())
 }
