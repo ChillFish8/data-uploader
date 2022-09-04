@@ -114,11 +114,6 @@ fn start_reading_file(tx: flume::Sender<Comment>, folder: String) -> Result<()> 
 
     for file in list_dir {
         let file = file?;
-
-        if file.path().is_dir() {
-            continue
-        }
-
         read_file(&tx, &file.path())?;
     }
 
