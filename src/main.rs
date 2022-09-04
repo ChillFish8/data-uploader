@@ -135,7 +135,11 @@ fn read_file(tx: &flume::Sender<Comment>, fp: &Path) -> Result<()> {
             break;
         }
 
-        let mut comment: Comment = serde_json::from_str(s.trim())?;
+        let mut comment: Comment = serde_json::from_str(s.trim())
+            .map_err(|e| {
+                error!("Data: {:?}", s.trim());
+                e
+            })?;
         comment.subreddit.insert(0, '/');
 
         if tx.send(comment).is_err() {
