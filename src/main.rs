@@ -131,7 +131,7 @@ pub struct Comment {
 async fn start_reading_file(tx: flume::Sender<Comment>, folder: String) -> Result<()> {
     let list_dir = fs::read_dir(&folder)?;
 
-    let semaphore = Arc::new(tokio::sync::Semaphore::new(3));
+    let semaphore = Arc::new(tokio::sync::Semaphore::new(5));
     let mut handles = vec![];
     for file in list_dir {
         let file = file?;
