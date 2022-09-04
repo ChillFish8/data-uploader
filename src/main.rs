@@ -7,7 +7,7 @@ use anyhow::{bail, Result};
 use serde::{Serialize, Deserialize};
 use clap::Parser;
 use reqwest::{Client, StatusCode, Url};
-use tracing::{info, warn};
+use tracing::{error, info, warn};
 
 #[derive(Parser, Debug)]
 pub struct Options {
@@ -115,7 +115,9 @@ fn start_reading_file(tx: flume::Sender<Comment>, folder: String) -> Result<()> 
     for file in list_dir {
         let file = file?;
         info!("Reading {:?} file...", file.path());
-        read_file(&tx, &file.path())?;
+        if let Err(e) = read_file(&tx, &file.path()) {
+            error!("Failed to read file: {}", e);
+        }
     }
 
     Ok(())
