@@ -129,6 +129,7 @@ fn read_file(tx: &flume::Sender<Comment>, fp: &Path) -> Result<()> {
 
     let mut s = String::new();
     loop {
+        s.clear();
         let n = reader.read_line(&mut s)?;
 
         if n == 0 {
