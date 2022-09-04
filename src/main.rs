@@ -77,7 +77,9 @@ async fn send_block(url: &Url, client: &Client, comments: Vec<Comment>) -> Resul
             .await?;
 
         if resp.status() != StatusCode::OK {
-            warn!("Upload skipped due to error: {}, retrying...", resp.status());
+            let msg = resp.text().await?;
+
+            warn!("Upload skipped due to error: {}, {:?} retrying...", resp.status(), msg);
             continue;
         }
     }
