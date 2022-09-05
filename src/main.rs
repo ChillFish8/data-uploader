@@ -27,7 +27,7 @@ async fn main() -> Result<()> {
     tracing_subscriber::fmt::init();
 
     let options: Options = Options::parse();
-    let (tx, rx) = flume::bounded(50000);
+    let (tx, rx) = flume::bounded(5000000);
 
     let url: Url = format!("http://{}/indexes/{}/documents", options.host, options.index_name).parse()?;
 
@@ -39,11 +39,13 @@ async fn main() -> Result<()> {
 
     let handle1 = tokio::spawn(uploadeder_task(1, rx.clone(), url.clone(), counter.clone()));
     let handle2 = tokio::spawn(uploadeder_task(2, rx.clone(), url.clone(), counter.clone()));
+    let handle3 = tokio::spawn(uploadeder_task(2, rx.clone(), url.clone(), counter.clone()));
 
-    let (r1, r2) = futures::future::join(handle1, handle2).await;
+    let handles = vec![handle1, handle2, handle3];
 
-    r1??;
-    r2??;
+    for handle in handles {
+        handle.await??;
+    }
 
     info!(
         "Upload took: {} total to upload {} docs.",
@@ -131,7 +133,7 @@ pub struct Comment {
 async fn start_reading_file(tx: flume::Sender<Comment>, folder: String) -> Result<()> {
     let list_dir = fs::read_dir(&folder)?;
 
-    let semaphore = Arc::new(tokio::sync::Semaphore::new(5));
+    let semaphore = Arc::new(tokio::sync::Semaphore::new(6));
     let mut handles = vec![];
     for file in list_dir {
         let file = file?;
